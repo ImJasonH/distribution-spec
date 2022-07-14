@@ -36,8 +36,12 @@ type request struct {
 	wantStatus    []int
 	wantErrorCode string
 }
+type response struct {
+	headers http.Header
+	body    string
+}
 
-func (r request) do(t *testing.T) {
+func (r request) do(t *testing.T) response {
 	t.Helper()
 
 	url, err := url.Parse(fmt.Sprintf("%s%s", env.Host, r.path))
@@ -64,6 +68,14 @@ func (r request) do(t *testing.T) {
 		t.Fatal("do request:", err)
 	}
 	t.Logf("%s %s: %d", r.method, req.URL, resp.StatusCode)
+
+	defer resp.Body.Close()
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Errorf("reading response body: %v", err)
+	}
+	body := string(b)
+
 	if err := r.matchStatus(resp.StatusCode); err != nil {
 		defer resp.Body.Close()
 		b, err := io.ReadAll(resp.Body)
@@ -75,6 +87,13 @@ func (r request) do(t *testing.T) {
 	}
 	if err := r.matchErrorCode(resp.Body); err != nil {
 		t.Error(err)
+	}
+	if t.Failed() {
+		t.Fatal("request failed")
+	}
+	return response{
+		headers: resp.Header,
+		body:    string(body),
 	}
 }
 

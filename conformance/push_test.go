@@ -1,14 +1,134 @@
 package conformance
 
 import (
+	"crypto/rand"
 	"fmt"
+	"io"
 	"net/http"
-
-	"github.com/bloodorangeio/reggie"
-	g "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"strings"
+	"testing"
 )
 
+// TODO: cross-repo blob mount
+
+func TestPushBlobStreaming(t *testing.T) {
+	content := randString(t)
+	digest := sha256String(content)
+
+	loc := request{
+		desc:       "POST to create new upload",
+		method:     http.MethodPost,
+		path:       fmt.Sprintf("/v2/%s/blobs/uploads/", env.Repo),
+		wantStatus: []int{http.StatusAccepted},
+	}.do(t).headers.Get("Location")
+	t.Logf("Got Location: %s", loc)
+
+	request{
+		desc:   "PATCH to start upload",
+		method: http.MethodPatch,
+		path:   loc,
+		headers: map[string]string{
+			"Content-Type": "application/octet-stream",
+		},
+		body:       strings.NewReader(content),
+		wantStatus: []int{http.StatusNoContent},
+	}.do(t)
+
+	request{
+		desc:       "PUT to finish upload",
+		method:     http.MethodPut,
+		path:       loc,
+		query:      map[string]string{"digest": digest},
+		wantStatus: []int{http.StatusCreated},
+	}.do(t).headers.Get("Location")
+
+	request{
+		desc:       "GET blob",
+		method:     http.MethodGet,
+		path:       fmt.Sprintf("/v2/%s/blobs/%s", env.Repo, digest),
+		wantStatus: []int{http.StatusOK},
+	}.do(t)
+}
+
+func randString(t *testing.T) string {
+	b, err := io.ReadAll(io.LimitReader(rand.Reader, 10))
+	if err != nil {
+		t.Fatalf("Error reading random bytes: %v", err)
+	}
+	return fmt.Sprintf("%x", b)
+}
+
+func TestPushBlobStreamingMultipleChunks(t *testing.T) {
+	t.Skip("not supported at this time") // TODO support it
+
+	chunk1, chunk2, chunk3 := randString(t), randString(t), randString(t)
+	content := chunk1 + chunk2 + chunk3
+	digest := sha256String(content)
+
+	loc := request{
+		desc:       "POST to create new upload",
+		method:     http.MethodPost,
+		path:       fmt.Sprintf("/v2/%s/blobs/uploads/", env.Repo),
+		wantStatus: []int{http.StatusAccepted},
+	}.do(t).headers.Get("Location")
+	t.Logf("Got Location: %s", loc)
+
+	for _, chunk := range []string{chunk1, chunk2, chunk3} {
+		request{
+			desc:   "PATCH to start upload",
+			method: http.MethodPatch,
+			path:   loc,
+			headers: map[string]string{
+				"Content-Type": "application/octet-stream",
+			},
+			body:       strings.NewReader(chunk),
+			wantStatus: []int{http.StatusNoContent},
+		}.do(t)
+	}
+
+	request{
+		desc:       "PUT to finish upload",
+		method:     http.MethodPut,
+		path:       loc,
+		query:      map[string]string{"digest": digest},
+		wantStatus: []int{http.StatusCreated},
+	}.do(t).headers.Get("Location")
+
+	request{
+		desc:       "GET blob",
+		method:     http.MethodGet,
+		path:       fmt.Sprintf("/v2/%s/blobs/%s", env.Repo, digest),
+		wantStatus: []int{http.StatusOK},
+	}.do(t)
+}
+
+func TestPushBlobSingleShot(t *testing.T) {
+	content := "blob content"
+	digest := sha256String(content)
+
+	request{
+		method: http.MethodPost,
+		path:   fmt.Sprintf("/v2/%s/blobs/uploads/", env.Repo),
+		query: map[string]string{
+			"digest": digest,
+		},
+		headers: map[string]string{
+			"Content-Type":   "application/octet-stream",
+			"Content-Length": fmt.Sprintf("%d", len(content)),
+		},
+		body:       strings.NewReader(content),
+		wantStatus: []int{http.StatusCreated},
+	}.do(t)
+
+	request{
+		desc:       "GET blob",
+		method:     http.MethodGet,
+		path:       fmt.Sprintf("/v2/%s/blobs/%s", env.Repo, digest),
+		wantStatus: []int{http.StatusOK},
+	}.do(t)
+}
+
+/*
 var test02Push = func() {
 	g.Context(titlePush, func() {
 
@@ -397,3 +517,5 @@ var test02Push = func() {
 		})
 	})
 }
+
+*/

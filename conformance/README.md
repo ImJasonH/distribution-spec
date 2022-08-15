@@ -1,19 +1,9 @@
-## Conformance Tests
+# Conformance Tests
 
-### How to Run
+## How to Run
 
-#### Binary
+### Setup
 
-Requires Go 1.17+.
-
-In this directory, build the test binary:
-```
-go test -c
-```
-
-This will produce an executable at `conformance.test`.
-
-Next, set environment variables with your registry details:
 ```
 # Registry details
 export OCI_ROOT_URL="https://r.myreg.io"
@@ -21,29 +11,19 @@ export OCI_NAMESPACE="myorg/myrepo"
 export OCI_CROSSMOUNT_NAMESPACE="myorg/other"
 export OCI_USERNAME="myuser"
 export OCI_PASSWORD="mypass"
-
-# Which workflows to run
-export OCI_TEST_PULL=1
-export OCI_TEST_PUSH=1
-export OCI_TEST_CONTENT_DISCOVERY=1
-export OCI_TEST_CONTENT_MANAGEMENT=1
-
-# Extra settings
-export OCI_HIDE_SKIPPED_WORKFLOWS=0
-export OCI_DEBUG=0
-export OCI_DELETE_MANIFEST_BEFORE_BLOBS=0
 ```
 
-Lastly, run the tests:
+Then run the test.
+
 ```
-./conformance.test
+go test ./
 ```
 
-This will produce `junit.xml` and `report.html` with the results.
+TODO:
+- selecting which suites to run.
+- generating pretty output
 
-Note: for some registries, you may need to create `OCI_NAMESPACE` ahead of time.
-
-#### Testing registry workflows
+## Testing registry workflows
 
 The tests are broken down into 4 major categories:
 

@@ -1,8 +1,6 @@
 package conformance
 
-import (
-	digest "github.com/opencontainers/go-digest"
-)
+import digest "github.com/opencontainers/go-digest"
 
 // These types are copied from github.com/opencontainers/image-spec/specs-go/v1
 // Modifications have been made to remove fields that aren't used in these

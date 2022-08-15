@@ -1,5 +1,3 @@
-//go:build pull
-
 package conformance
 
 import (
@@ -52,7 +50,7 @@ func TestPullBlob(t *testing.T) {
 		path:       fmt.Sprintf("/v2/%s/blobs/%s", env.Repo, nonExistentDigest),
 		wantStatus: []int{http.StatusNotFound},
 	}} {
-		t.Run(r.desc, r.do)
+		t.Run(r.desc, func(t *testing.T) { _ = r.do(t) })
 	}
 }
 
@@ -79,27 +77,7 @@ var mf = imageManifest{
 }
 
 func TestPullManifest(t *testing.T) {
-	m := imageManifest{
-		SchemaVersion: 2,
-		MediaType:     "application/vnd.oci.image.manifest.v1+json",
-		Config: descriptor{
-			// Conformance doesn't care about the details of the config, only the mediaType.
-			Digest:    sha256String(""),
-			MediaType: "application/vnd.oci.image.config.v1+json",
-			Size:      0,
-		},
-		Layers: []descriptor{{
-			Digest:    sha256String("layer content"),
-			MediaType: "application/vnd.oci.image.layer.v1.tar+gzip",
-			Size:      int64(len("layer content")),
-			Data:      []byte("layer content"),
-		}, {
-			Digest:    sha256String("more layer content"),
-			MediaType: "application/vnd.oci.image.layer.v1.tar+gzip",
-			Size:      int64(len("more layer content")),
-			Data:      []byte("layer content"),
-		}},
-	}.string(t)
+	m := mf.string(t)
 	digest := sha256String(m)
 	tag := "my-tag"
 
@@ -160,11 +138,20 @@ func TestPullManifest(t *testing.T) {
 		method:     http.MethodHead,
 		path:       fmt.Sprintf("/v2/%s/manifests/%s", env.Repo, nonExistentTag),
 		wantStatus: []int{http.StatusNotFound},
+	}, {
+		desc:          "GET invalid repo name; NAME_INVALID",
+		method:        http.MethodGet,
+		path:          "/v2/~InV@l1d/manifests/latest",
+		wantStatus:    []int{http.StatusBadRequest},
+		wantErrorCode: "NAME_INVALID",
+	}, {
+		desc:          "GET unknown repo name; NAME_UNKNOWN",
+		method:        http.MethodGet,
+		path:          fmt.Sprintf("/v2/%s/manifests/latest", "repo-"+randString(t)),
+		wantStatus:    []int{http.StatusNotFound},
+		wantErrorCode: "NAME_UNKNOWN",
 	}} {
-		t.Run(r.desc, r.do)
+		t.Run(r.desc, func(t *testing.T) { _ = r.do(t) })
 	}
-
-	// TODO: invalid repo name should return 400, NAME_INVALID
-	// TODO: unknown repo name should return 404, NAME_UNKNOWN
 	// TODO: invalid tag name should return 400, NAME_INVALID(?)
 }

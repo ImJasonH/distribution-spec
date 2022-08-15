@@ -9,8 +9,6 @@ import (
 	"testing"
 )
 
-// TODO: cross-repo blob mount
-
 func TestPushBlobStreaming(t *testing.T) {
 	content := randString(t)
 	digest := sha256String(content)
@@ -120,6 +118,49 @@ func TestPushBlobSingleShot(t *testing.T) {
 		wantStatus: []int{http.StatusCreated},
 	}.do(t)
 
+	request{
+		desc:       "GET blob",
+		method:     http.MethodGet,
+		path:       fmt.Sprintf("/v2/%s/blobs/%s", env.Repo, digest),
+		wantStatus: []int{http.StatusOK},
+	}.do(t)
+}
+
+func TestMountBlob(t *testing.T) {
+	if env.MountRepo == "" {
+		t.Skip("Skipping mount test, configure mount repo with OCI_CROSSMOUNT_NAMESPACE")
+	}
+
+	content := "blob content"
+	digest := sha256String(content)
+
+	// Put the blob in the source repo.
+	request{
+		method: http.MethodPost,
+		path:   fmt.Sprintf("/v2/%s/blobs/uploads/", env.MountRepo),
+		query: map[string]string{
+			"digest": digest,
+		},
+		headers: map[string]string{
+			"Content-Type":   "application/octet-stream",
+			"Content-Length": fmt.Sprintf("%d", len(content)),
+		},
+		body:       strings.NewReader(content),
+		wantStatus: []int{http.StatusCreated},
+	}.do(t)
+
+	// Mount the blob to the destination repo.
+	request{
+		method: http.MethodPost,
+		path:   fmt.Sprintf("/v2/%s/blobs/uploads/", env.Repo),
+		query: map[string]string{
+			"digest": digest,
+			"mount":  env.MountRepo,
+		},
+		wantStatus: []int{http.StatusCreated},
+	}.do(t)
+
+	// Get the blob from the destination repo.
 	request{
 		desc:       "GET blob",
 		method:     http.MethodGet,

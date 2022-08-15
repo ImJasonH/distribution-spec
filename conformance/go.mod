@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/bloodorangeio/reggie v0.5.0
+	github.com/google/go-cmp v0.5.5
 	github.com/google/uuid v1.3.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/onsi/ginkgo v1.16.4

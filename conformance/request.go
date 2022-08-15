@@ -7,16 +7,18 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/kelseyhightower/envconfig"
 )
 
 var env struct {
-	Host string `envconfig:"OCI_HOST" default:"http://localhost:8080"`
-	Repo string `envconfig:"OCI_REPO" default:"oci-conformance"`
-	Auth string `envconfig:"OCI_AUTH"`
-	Tag  string `envconfig:"OCI_TAG" default:"my-tag"`
+	Host      string `envconfig:"OCI_HOST" default:"http://localhost:8080"`
+	Repo      string `envconfig:"OCI_REPO" default:"oci-conformance"`
+	Auth      string `envconfig:"OCI_AUTH"`
+	Tag       string `envconfig:"OCI_TAG" default:"my-tag"`
+	MountRepo string `envconfig:"OCI_CROSSMOUNT_NAMESPACE"`
 }
 
 func init() {
@@ -39,6 +41,12 @@ type request struct {
 type response struct {
 	headers http.Header
 	body    string
+}
+
+func (r response) unmarshal(t *testing.T, v interface{}) {
+	if err := json.NewDecoder(strings.NewReader(r.body)).Decode(&v); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
 }
 
 func (r request) do(t *testing.T) response {
